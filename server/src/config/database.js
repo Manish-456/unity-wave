@@ -10,9 +10,7 @@ class Database {
    async connect() {
       try {
          await mongoose.connect(this.url);
-         console.log(`
-                Connected to the database : ${mongoose.connection.db.databaseName}
-            `);
+         console.log(`Connected to the database : ${mongoose.connection.db.databaseName}`);
       } catch (error) {
          throw error;
       }
@@ -21,9 +19,7 @@ class Database {
    async disconnect() {
       try {
          await mongoose.disconnect();
-         console.log(`
-                Disconnected from the database : ${mongoose.connection.db.databaseName}
-            `);
+         console.log(`Disconnected from the database : ${mongoose.connection.db.databaseName}`);
       } catch (error) {
          throw error;
       }
