@@ -6,20 +6,10 @@ import { dirname, join } from "path";
 
 const addUserValidator = [
    check("name")
-      .isLength({ min: 1 })
-      .withMessage("Name is required")
+      .isLength({ min: 2, max: 20 })
+      .withMessage("Name must be between 2 and 20 characters")
       .isAlpha("en-US", { ignore: " -" })
       .withMessage("Name must not contain anything other than alphabet")
-      .custom((value, { req }) => {
-         switch (true) {
-            case value.length === 1:
-               throw new Error("Name must be at least 2 characters long");
-            case value.length > 20:
-               throw new Error("Name cannot be more than 20 characters long");
-            default:
-               true;
-         }
-      })
       .trim(),
 
    check("email")
@@ -37,6 +27,7 @@ const addUserValidator = [
                );
             }
          } catch (err) {
+            console.log(err);
             throw err;
          }
       }),
