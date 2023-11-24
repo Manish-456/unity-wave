@@ -1,6 +1,10 @@
 import bcrypt from "bcrypt";
 import User from "../models/user.model.js";
 
+export async function signIn(req, res, next){
+   
+}
+
 /**
  * @description If the email domain of the user's email is "mod.unitywave.com",
  *  the user will be assigned the role of "moderator" by default,
@@ -11,6 +15,7 @@ import User from "../models/user.model.js";
  * @param {string} req.body.isConsentGiven - Indicates whether the user has given consent to enable context based auth.
  * @param {Function} next - The next middleware function to call if consent is given by the user to enable context based auth.
  */
+
 
 export async function addUser(req, res, next) {
    let newUser;

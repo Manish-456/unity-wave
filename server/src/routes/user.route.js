@@ -1,5 +1,8 @@
 import express from "express";
-import { addUser } from "../controllers/user.controller.js";
+import requestIp from "request-ip";
+import userAgent from "express-useragent";
+
+import { addUser, signIn } from "../controllers/user.controller.js";
 import { signUpSignInLimiter } from "../middleware/limiter/limiter.js";
 import imageUpload from "../middleware/users/imageUpload.js";
 
@@ -20,6 +23,14 @@ router.post(
    addUserValidatorHandler,
    addUser,
    sendVerificationEmail
+);
+
+router.post(
+   "/sign-in",
+   signUpSignInLimiter,
+   requestIp.mw(),
+   userAgent.express(),
+   signIn
 );
 
 export default router;
