@@ -8,6 +8,8 @@ import {
    addUserValidatorHandler,
 } from "../middleware/users/userValidator.js";
 
+import { sendVerificationEmail } from "../middleware/users/verifyEmail.js";
+
 const router = express.Router();
 
 router.post(
@@ -16,7 +18,8 @@ router.post(
    imageUpload,
    addUserValidator,
    addUserValidatorHandler,
-   addUser
+   addUser,
+   sendVerificationEmail
 );
 
 export default router;

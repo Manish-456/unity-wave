@@ -55,6 +55,8 @@ export async function addUser(req, res, next) {
          return res.status(201).json({
             message: "User added successfully",
          });
+      }else{
+         next();
       }
    } catch (error) {
       return res.status(400).json({
