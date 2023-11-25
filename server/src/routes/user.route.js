@@ -2,7 +2,7 @@ import express from "express";
 import requestIp from "request-ip";
 import userAgent from "express-useragent";
 
-import { addUser, signIn } from "../controllers/user.controller.js";
+import { addUser, logout, signIn } from "../controllers/user.controller.js";
 
 import { signUpSignInLimiter } from "../middleware/limiter/limiter.js";
 import imageUpload from "../middleware/users/imageUpload.js";
@@ -14,6 +14,7 @@ import {
 
 import { sendVerificationEmail } from "../middleware/users/verifyEmail.js";
 import { sendLoginVerificationEmail } from "../middleware/users/verifyLogin.js";
+import { decodeToken } from "../middleware/auth/decodeToken.js";
 
 const router = express.Router();
 
@@ -35,5 +36,7 @@ router.post(
    signIn,
    sendLoginVerificationEmail
 );
+
+router.post("/logout", decodeToken, logout);
 
 export default router;

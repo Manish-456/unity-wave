@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { query, validationResult } from "express-validator";
 import { verifyLoginHTML } from "../../utils/emailTemplates.js";
-import SuspiciousLogin from "../../models/suspiciousLogin.model";
+import SuspiciousLogin from "../../models/suspiciousLogin.model.js";
 import EmailVerification from "../../models/email.model.js";
 
 const CLIENT_URL = process.env.CLIENT_URL;
