@@ -4,6 +4,7 @@ export const getCurrentContextData = (req) => {
     const ip = req.clientIp || "unknown";
     const location = geoIp.lookup(ip) || "unknown";
     const city = location.city ? location.city.toString() : "unknown";
+    const country = location.country ? location.country.toString() : "unknown";
     const browser = req.useragent.browser
        ? `${req.useragent.browser} ${req.useragent.version}`
        : "unknown";

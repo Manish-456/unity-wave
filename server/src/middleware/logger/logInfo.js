@@ -20,12 +20,14 @@ export const saveLogInfo = async (req, message, type, level) => {
       }
 
       const log = new Log({
-        context,
-        message,
-        type,
-        level
+         context,
+         message,
+         type,
+         level,
       });
 
       await log.save();
-   } catch (error) {}
+   } catch (error) {
+      console.error(error);
+   }
 };

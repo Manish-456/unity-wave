@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import {encryptField, decryptField, decryptData} from "../utils/encryption.js";
 
 const logSchema = Schema({
    email: { type: String },
