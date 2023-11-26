@@ -1,10 +1,20 @@
+import dayjs from "dayjs";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import duration from "dayjs/plugin/duration.js";
+
 import User from "../models/user.model.js";
+import Post from "../models/post.model.js";
 import Token from "../models/token.model.js";
-import { saveLogInfo } from "../middleware/logger/logInfo.js";
+import Community from "../models/community.model.js";
 import UserPreference from "../models/preference.model.js";
+
+import { saveLogInfo } from "../middleware/logger/logInfo.js";
+
 import { types, verifyContextData } from "./auth.controller.js";
+import { formatCreatedAt } from "../utils/timeConverter.js";
+
+dayjs.extend(duration);
 
 const LOG_TYPE = {
    SIGN_IN: "sign in",
@@ -63,7 +73,6 @@ export async function signIn(req, res, next) {
          password,
          existingUser.password
       );
-
 
       if (!isCorrectPassword) {
          await saveLogInfo(
@@ -272,22 +281,217 @@ export async function addUser(req, res, next) {
    }
 }
 
-
-export async function logout(req, res){
+export async function logout(req, res) {
    try {
       const accessToken = req.headers.authorization?.split(" ")[1] ?? null;
-      if(accessToken){
-         await Token.deleteOne({accessToken});
-         await saveLogInfo(null, MESSAGE.LOGOUT_SUCCESS, LOG_TYPE.LOGOUT, LEVEL.INFO);
+      if (accessToken) {
+         await Token.deleteOne({ accessToken });
+         await saveLogInfo(
+            null,
+            MESSAGE.LOGOUT_SUCCESS,
+            LOG_TYPE.LOGOUT,
+            LEVEL.INFO
+         );
       }
 
       res.status(200).json({
-         message : "Logout successfull"
-      })
+         message: "Logout successfull",
+      });
    } catch (error) {
       await saveLogInfo(null, error.message, LOG_TYPE.LOGOUT, LEVEL.ERROR);
       res.status(500).json({
-         message : "Internal server error. Please try again later"
+         message: "Internal server error. Please try again later",
+      });
+   }
+}
+
+export async function refreshToken(req, res) {
+   try {
+      const { refreshToken } = req.body;
+
+
+      const exisingToken = await Token.findOne({
+         refreshToken: {
+            $eq: refreshToken,
+         },
+      });
+
+      if (!exisingToken)
+         return res.status(401).json({
+            message: "Invalid refresh token",
+         });
+
+      const existingUser = await User.findById(exisingToken.user);
+
+      if (!existingUser)
+         return res.status(401).json({
+            message: "Invalid refresh token",
+         });
+
+      const refreshTokenExpiresAt =
+         jwt.decode(exisingToken.refreshToken) * 1000;
+
+      if (Date.now >= refreshTokenExpiresAt) {
+         await exisingToken.deleteOne();
+         return res.status(401).json({
+            message: "Expired refresh token",
+         });
+      }
+
+      const payload = {
+         id: existingUser._id,
+         email: existingUser.email,
+      };
+
+      const accessToken = jwt.sign(payload, process.env.ACCESS_SECRET, {
+         expiresIn: "6h",
+      });
+
+      res.status(200).json({
+         accessToken,
+         refreshToken: exisingToken.refreshToken,
+         accessTokenUpdatedAt: new Date().toLocaleDateString(),
+      });
+   } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * Retrieve user's profile information, including their total number of posts,
+ * the number of communities they are in, the number of communities they have posted in,
+ * and their duration on the platform
+ *
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param {Function} next - Express next function
+ * @route GET /user/:id
+ */
+
+export async function getUser(req, res, next) {
+   try {
+      const user = await User.findById(req.params.id)
+         .select("-password")
+         .lean();
+
+      //? Total Posts
+      const totalPosts = await Post.countDocuments({ user: user._id });
+
+      const communities = await Community.find({
+         members: {
+            $in: [user._id],
+         },
+      });
+
+      const totalCommunities = communities.length;
+
+      const postCommunities = await Post.find({ user: user._id }).distinct(
+         "community"
+      );
+
+      const totalPostCommunities = postCommunities.length;
+
+      const createdAt = dayjs(user.createdAt);
+      const now = dayjs();
+      const durationObj = dayjs.duration(now.diff(createdAt));
+      const durationMinutes = durationObj.asMinutes();
+      const durationHours = durationObj.asHours();
+      const durationDays = durationObj.asDays();
+
+      user.totalPosts = totalPosts;
+      user.totalCommunities = totalCommunities;
+      user.totalPostCommunities = totalPostCommunities;
+      user.duration = "";
+
+      if (durationMinutes < 60) {
+         user.duration = `${Math.floor(durationMinutes)} minutes`;
+      } else if (durationHours < 24) {
+         user.duration = `${Math.floor(durationHours)} hours`;
+      } else if (durationDays < 365) {
+         user.duration = `${Math.floor(durationDays)} days`;
+      } else {
+         const durationYears = Math.floor(durationDays / 365);
+         user.duration = `${durationYears} years`;
+      }
+
+      const posts = await Post.find({
+         user: user._id,
       })
+         .populate("community", "name members")
+         .limit(20)
+         .lean()
+         .sort({ createdAt: -1 });
+
+      user.posts = posts.map((post) => ({
+         ...post,
+         isMember: post.community?.members
+            .map((member) => member.toString())
+            .includes(user._id.toString()),
+         createdAt: formatCreatedAt(post.createdAt),
+      }));
+
+      res.status(200).json(user);
+   } catch (error) {
+      next(error);
+   }
+}
+
+export async function getModProfile(req, res) {
+   try {
+      const moderator = await User.findById(req.userId);
+      if (!moderator) {
+         return res.status(404).json({
+            message: "User not found",
+         });
+      }
+
+      const moderatorInfo = {
+         ...moderator._doc,
+      };
+
+      delete moderatorInfo.password;
+
+      moderatorInfo.createdAt = moderatorInfo.createdAt.toLocaleString();
+
+      res.status(200).json({
+         moderatorInfo,
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route PUT /api/user/:id
+ */
+
+export async function updateInfo(req, res) {
+   try {
+      const user = await User.findById(req.userId);
+      if (!user)
+         return res.status(404).json({
+            message: "User not found",
+         });
+
+      const { location, bio, interest } = req.body;
+
+      user.location = location;
+      user.bio = bio;
+      user.interest = interest;
+
+      await user.save();
+
+      return res.status(200).json({
+         message: "User info updated successfully",
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Error updating user info",
+      });
    }
 }

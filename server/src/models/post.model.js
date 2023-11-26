@@ -15,6 +15,12 @@ const postSchema = Schema({
     type :String
    },
 
+   community : {
+      type : Schema.Types.ObjectId,
+      ref : 'Community',
+      required : true
+   },
+
    user : {
     type : Schema.Types.ObjectId,
     ref : "User"

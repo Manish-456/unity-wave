@@ -2,6 +2,7 @@ import express from "express";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import userRouter from "./routes/user.route.js";
+import passport from "passport";
 
 const app = express();
 
@@ -25,6 +26,8 @@ app.use(
       limit: "100kb",
    })
 );
+
+app.use(passport.initialize());
 
 app.get("/health-checkup", (_, res) =>
    res.json({
