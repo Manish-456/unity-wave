@@ -1,18 +1,12 @@
 import express from "express";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import userRouter from "./routes/user.route.js";
 import passport from "passport";
+
+import userRouter from "./routes/user.route.js";
+import postRouter from "./routes/post.route.js";
 
 const app = express();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-app.use(
-   "/assets/userAvatars",
-   express.static(join(__dirname, "../assets/userAvatars"))
-);
+app.use("/assets/userAvatars", express.static("./assets/userAvatars"));
 
 app.use(
    express.json({
@@ -35,6 +29,8 @@ app.get("/health-checkup", (_, res) =>
    })
 );
 
-app.use("/api", userRouter);
+app.use("/api/user", userRouter);
+
+app.use("/api/posts", postRouter);
 
 export default app;

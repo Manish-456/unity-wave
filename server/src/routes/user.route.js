@@ -61,7 +61,7 @@ router.post("/logout", decodeToken, logout);
 
 router.get("/moderator", requireAuth, decodeToken, getModProfile);
 
-router.put("/user/:id", requireAuth, decodeToken, updateInfo);
-router.get("/user/:id", requireAuth, decodeToken, getUser);
+router.put("/update/:id", requireAuth, decodeToken, updateInfo);
+router.get("/:id", requireAuth, decodeToken, getUser);
 
 export default router;
