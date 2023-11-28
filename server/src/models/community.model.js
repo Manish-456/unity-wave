@@ -42,7 +42,11 @@ const communitySchema = Schema({
       },
    ],
 
-   //    TODO : Add rules
+   rules : [{
+      type : Schema.Types.ObjectId,
+      ref : "Rule",
+      default : []
+   }]
 }, {
     timestamps : true
 });

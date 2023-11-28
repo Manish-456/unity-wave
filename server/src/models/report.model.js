@@ -8,7 +8,7 @@ const reportSchema = Schema({
    },
    community: {
       type: Schema.Types.ObjectId,
-      type: "Community",
+      ref: "Community",
       required: true,
    },
    reportedBy: [

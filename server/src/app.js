@@ -1,12 +1,19 @@
 import express from "express";
 import passport from "passport";
 
-import userRouter from "./routes/user.route.js";
-import postRouter from "./routes/post.route.js";
+import userRoutes from "./routes/user.route.js";
+import postRoutes from "./routes/post.route.js";
+import communityRoutes from "./routes/community.route.js";
 
 const app = express();
 
 app.use("/assets/userAvatars", express.static("./assets/userAvatars"));
+
+app.get("/health-checkup", (_, res) =>
+   res.json({
+      message: "Server is up and running ✅",
+   })
+);
 
 app.use(
    express.json({
@@ -23,14 +30,8 @@ app.use(
 
 app.use(passport.initialize());
 
-app.get("/health-checkup", (_, res) =>
-   res.json({
-      message: "Server is up and running ✅",
-   })
-);
-
-app.use("/api/user", userRouter);
-
-app.use("/api/posts", postRouter);
+app.use("/api/user", userRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/communities", communityRoutes);
 
 export default app;
