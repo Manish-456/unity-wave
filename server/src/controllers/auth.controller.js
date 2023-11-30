@@ -1,10 +1,13 @@
+import geoip from "geoip-lite";
+
 import UserContext from "../models/context.model.js";
 import SuspiciousLogin from "../models/suspiciousLogin.model.js";
+import UserPreference from "../models/preference.model.js";
 import { getCurrentContextData } from "../utils/contextData.js";
 import { formatCreatedAt } from "../utils/timeConverter.js";
 import { saveLogInfo } from "../middleware/logger/logInfo.js";
 
-export const types = {
+ const types = {
    NO_CONTEXT_DATA: "no_context_data",
    MATCH: "match",
    BLOCKED: "blocked",
@@ -61,7 +64,8 @@ const addNewSuspiciousLogin = async (_id, email, currentContextData) => {
 
    await newSuspiciousLogin.save();
 };
-export const verifyContextData = async (req, existingUser) => {
+
+const verifyContextData = async (req, existingUser) => {
    try {
       const { _id } = existingUser;
       const userContextDataRes = await UserContext.findOne({
@@ -102,7 +106,7 @@ export const verifyContextData = async (req, existingUser) => {
          if (oldSuspiciousContextData.isTrusted) return types.MATCH;
       }
 
-      let  newSuspiciousData = {};
+      let newSuspiciousData = {};
 
       if (
          oldSuspiciousContextData &&
@@ -217,9 +221,9 @@ export const verifyContextData = async (req, existingUser) => {
       }
 
       const mismatchedProps = [];
-      const {time, id, ...rest} = newSuspiciousData;
-      for(const prop in rest){
-         if(userContextData[prop] !== newSuspiciousData[prop]){
+      const { time, id, ...rest } = newSuspiciousData;
+      for (const prop in rest) {
+         if (userContextData[prop] !== newSuspiciousData[prop]) {
             mismatchedProps.push(prop);
          }
       }
@@ -254,4 +258,282 @@ export const verifyContextData = async (req, existingUser) => {
    } catch (error) {
       return types.ERROR;
    }
+};
+
+async function addContextData(req, res) {
+   const userId = req.userId;
+   const email = req.email;
+   const ip = req.ip || "unknown";
+
+   const location = geoip.lookup(ip) || "unknown";
+   const country = location.country ? location.country.toString() : "unknown";
+   const city = location.city ? location.city.toString() : "unknown";
+
+   const browser = req.useragent.browser
+      ? `${req.useragent.browser} ${req.useragent.version}`
+      : "unknown";
+   const os = req.useragent.os ? req.useragent.os : "unknown";
+   const platform = req.useragent.platform
+      ? req.useragent.platform.toString()
+      : "unknown";
+   const device = req.useragent.device
+      ? req.useragent.device.toString()
+      : "unknown";
+
+   const isMobile = req.useragent.isMobile || false;
+   const isDesktop = req.useragent.isDesktop || false;
+   const isTablet = req.useragent.isTablet || false;
+
+   const deviceType = isMobile
+      ? "Mobile"
+      : isDesktop
+        ? "Desktop"
+        : isTablet
+          ? "Tablet"
+          : "unknown";
+
+   const newUserContext = new UserContext({
+      user,
+      email,
+      ip,
+      country,
+      city,
+      browser,
+      os,
+      platform,
+      device,
+      deviceType,
+   });
+
+   try {
+      await newUserContext.save();
+      res.status(200).json({
+         message: "Email verification process was successful",
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route GET /auth/context-data/primary
+ */
+
+async function getAuthContextdata(req, res) {
+   try {
+      const result = await UserContext.findOne({
+         user: req.userId,
+      });
+
+      if (!result) {
+         return res.status(404).json({
+            message: "Not found",
+         });
+      }
+
+      const userContextData = {
+         firstAdded: formatCreatedAt(result.createdAt),
+         ip: result.ip,
+         country: result.country,
+         city: result.city,
+         browser: result.browser,
+         platform: result.platform,
+         os: result.os,
+         device: result.device,
+         deviceType: result.deviceType,
+      };
+
+      res.status(200).json(userContextData);
+   } catch (error) {}
+}
+
+/**
+ * @route GET /api/auth/context-data/trusted
+ */
+
+async function getTrustedAuthContextData(req, res) {
+   try {
+      const result = await SuspiciousLogin.find({
+         user: req.userId,
+         isTrusted: true,
+         isBlocked: false,
+      });
+
+      const trustedAuthContextData = result.map((item) => ({
+         _id: item._id,
+         time: formatCreatedAt(item.createdAt),
+         ip: item.ip,
+         country: item.country,
+         city: item.city,
+         browser: item.browser,
+         platform: item.platform,
+         os: item.os,
+         device: item.device,
+         deviceType: item.deviceType,
+      }));
+
+      res.json(trustedAuthContextData);
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route GET /api/auth/context-data/blocked
+ */
+
+async function getBlockedAuthContextData(req, res) {
+   try {
+      const result = await SuspiciousLogin.find({
+         user: req.userId,
+         isTrusted: false,
+         isBlocked: true,
+      });
+
+      const blockedAuthContextData = result.map((item) => ({
+         _id: item._id,
+         time: formatCreatedAt(item.createdAt),
+         ip: item.ip,
+         country: item.country,
+         city: item.city,
+         browser: item.browser,
+         platform: item.platform,
+         os: item.os,
+         device: item.device,
+         deviceType: item.deviceType,
+      }));
+
+      res.json(blockedAuthContextData);
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route GET /api/auth/user-preferences
+ */
+
+async function getUserPreference(req, res) {
+   try {
+      const userPreferences = await UserPreference.findOne({
+         user: req.userId,
+      });
+
+      if (!userPreferences) {
+         return res.status(404).json({
+            message: "Not found",
+         });
+      }
+
+      res.status(200).json(userPreferences);
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route DELETE /api/auth/context-data/:contextId
+ */
+
+async function deleteContextAuthData(req, res) {
+   try {
+      const contextId = req.params.contextId;
+
+      await SuspiciousLogin.deleteOne({ _id: contextId });
+
+      res.status(200).json({
+         message: "Data deleted successfully",
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route PATCH /api/auth/context-data/block/:contextId
+ */
+
+async function blockContextAuthData(req, res) {
+   try {
+      const contextId = req.params.contextId;
+
+      await SuspiciousLogin.findOneAndUpdate(
+         {
+            _id: contextId,
+         },
+         {
+            $set: {
+               isBlocked: true,
+               isTrusted: false,
+            },
+         },
+         {
+            new: true,
+         }
+      );
+
+      res.status(200).json({
+         message: "Blocked successfully",
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+/**
+ * @route PATCH /api/auth/context-data/unblock/:contextId
+ */
+
+async function unblockContextAuthData(req, res) {
+   try {
+      const contextId = req.params.contextId;
+
+      await SuspiciousLogin.findOneAndUpdate(
+         {
+            _id: contextId,
+         },
+         {
+            $set: {
+               isBlocked: false,
+               isTrusted: true,
+            },
+         },
+         {
+            new: true,
+         }
+      );
+
+      res.status(200).json({
+         message: "Unblock successfully",
+      });
+   } catch (error) {
+      res.status(500).json({
+         message: "Internal server error",
+      });
+   }
+}
+
+export {
+   verifyContextData,
+   addContextData,
+   getAuthContextdata,
+   getTrustedAuthContextData,
+   getBlockedAuthContextData,
+   getUserPreference,
+   deleteContextAuthData,
+   blockContextAuthData,
+   unblockContextAuthData,
+   types
 };
